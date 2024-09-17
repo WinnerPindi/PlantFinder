@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import authRoute from './routes/authRoute.js'; 
 import usersRoute from './routes/usersRoute.js'; 
 import plantsRoute from './routes/plantsRoute.js'; 
+import reviewRoute from './routes/reviewRoute.js';
 import cookieParser from 'cookie-parser'; 
 import cors from 'cors'; 
 import multer from 'multer'; 
@@ -84,6 +85,7 @@ app.use("/uploads", express.static("uploads"));
 app.use("/api/auth", authRoute); 
 app.use("/api/users", usersRoute); 
 app.use("/api/plants", plantsRoute); 
+app.use("/api/review", reviewRoute);
 
 // Middleware de gestion des erreurs
 app.use((err, req, res, next) => {

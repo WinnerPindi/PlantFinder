@@ -5,13 +5,10 @@ import Nav from "../components/Nav";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
-
-// Importer les icônes de Leaflet en utilisant les imports ESModules
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 
-// Configurer les options par défaut pour les icônes de Leaflet
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: markerIcon2x,
   iconUrl: markerIcon,
@@ -21,6 +18,10 @@ L.Icon.Default.mergeOptions({
 const PlantDetails = () => {
   const { id } = useParams();
   const [plant, setPlant] = useState(null);
+  const [comments, setComments] = useState([]);
+  const [newComment, setNewComment] = useState("");
+  const [newRating, setNewRating] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   useEffect(() => {
@@ -30,6 +31,11 @@ const PlantDetails = () => {
           `http://localhost:8800/api/plants/${id}`
         );
         setPlant(response.data);
+
+        const commentsResponse = await axios.get(
+          `http://localhost:8800/api/review/plant/${id}`
+        );
+        setComments(commentsResponse.data);
       } catch (error) {
         console.error(
           "Erreur lors de la récupération des détails de la plante :",
@@ -46,16 +52,50 @@ const PlantDetails = () => {
     return <div>Chargement...</div>;
   }
 
-  // Créez une icône personnalisée pour la carte en utilisant l'image de la plante
   const plantIcon = L.icon({
     iconUrl: `http://localhost:8800/${plant.photos[0]}`,
-    iconSize: [50, 50], // Taille de l'icône
-    iconAnchor: [25, 50], // Point d'ancrage pour centrer l'icône
-    popupAnchor: [0, -50], // Point d'ancrage pour le popup
+    iconSize: [50, 50],
+    iconAnchor: [25, 50],
+    popupAnchor: [0, -50],
     shadowUrl: markerShadow,
     shadowSize: [68, 95],
     shadowAnchor: [22, 94],
   });
+
+  // Fonction pour gérer la soumission d'un commentaire
+  const handleCommentSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const token = localStorage.getItem("token"); // Récupère le token de l'utilisateur connecté
+      const config = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      const response = await axios.post(
+        `http://localhost:8800/api/review`,
+        {
+          plant: id, // L'ID de la plante
+          rating: newRating,
+          comment: newComment,
+        },
+        config
+      );
+
+      // Ajouter le nouveau commentaire à la liste sans rafraîchir la page
+      setComments([...comments, response.data]);
+      setNewComment("");
+      setNewRating(0);
+    } catch (error) {
+      console.error("Erreur lors de l'ajout du commentaire :", error);
+      setError("Failed to submit comment. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div>
@@ -155,6 +195,68 @@ const PlantDetails = () => {
               </Marker>
             </MapContainer>
           </div>
+        </div>
+
+        <div className="mt-12">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+            Commentaires
+          </h2>
+          {comments.length > 0 ? (
+            comments.map((comment, index) => (
+              <div key={index} className="mb-4 p-4 bg-white rounded-lg shadow-md">
+                <h3 className="font-semibold text-gray-700">{comment.user.prenom} {comment.user.nom}</h3>
+                <p className="text-gray-600">{comment.comment}</p>
+                <p className="text-gray-500 text-sm">Note : {comment.rating}/5</p>
+                <p className="text-gray-400 text-xs">{new Date(comment.date).toLocaleDateString()}</p>
+              </div>
+            ))
+          ) : (
+            <p className="text-gray-500">Aucun commentaire pour cette plante.</p>
+          )}
+        </div>
+
+        {/* Formulaire pour ajouter un commentaire */}
+        <div className="mt-12">
+          <h2 className="text-2xl font-semibold text-gray-800 mb-4">
+            Ajouter un Commentaire
+          </h2>
+          <form onSubmit={handleCommentSubmit} className="space-y-4">
+            <div>
+              <label htmlFor="rating" className="block text-gray-700 font-semibold">
+                Note (sur 5)
+              </label>
+              <input
+                id="rating"
+                type="number"
+                min="0"
+                max="5"
+                value={newRating}
+                onChange={(e) => setNewRating(e.target.value)}
+                className="w-full border border-gray-300 p-2 rounded-lg"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="comment" className="block text-gray-700 font-semibold">
+                Commentaire
+              </label>
+              <textarea
+                id="comment"
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                className="w-full border border-gray-300 p-2 rounded-lg"
+                rows="4"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              className="bg-blue-500 text-white font-semibold px-4 py-2 rounded-lg hover:bg-blue-600"
+              disabled={loading}
+            >
+              {loading ? "Ajout en cours..." : "Ajouter Commentaire"}
+            </button>
+          </form>
         </div>
       </div>
     </div>
